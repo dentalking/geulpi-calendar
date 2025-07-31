@@ -49,3 +49,7 @@ management:
     web:
       exposure:
         include: "*"
+
+ml:
+  server:
+    url: ${ML_SERVER_URL:http://localhost:8000}

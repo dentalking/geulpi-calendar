@@ -8,6 +8,8 @@ type Query {
 
 type Mutation {
     createCalendar(input: CreateCalendarInput!): Calendar!
+    parseNaturalLanguageEvent(text: String!): ParsedEvent!
+    optimizeSchedule(events: [EventInput!]!, preferences: PreferencesInput): ScheduleOptimization!
 }
 
 type User {
@@ -27,4 +29,44 @@ type Calendar {
 input CreateCalendarInput {
     name: String!
     description: String
+}
+
+type ParsedEvent {
+    title: String!
+    description: String
+    startTime: String!
+    endTime: String!
+    location: String
+}
+
+input EventInput {
+    id: ID
+    title: String!
+    startTime: String!
+    endTime: String!
+    location: String
+}
+
+input PreferencesInput {
+    workingHours: WorkingHoursInput
+    preferredMeetingDuration: Int
+}
+
+input WorkingHoursInput {
+    start: String!
+    end: String!
+}
+
+type ScheduleOptimization {
+    success: Boolean!
+    message: String!
+    optimizedEvents: [OptimizedEvent!]!
+}
+
+type OptimizedEvent {
+    originalId: ID
+    title: String!
+    startTime: String!
+    endTime: String!
+    suggestion: String
 }
