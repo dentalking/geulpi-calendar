@@ -1,0 +1,1563 @@
+scalar DateTime
+scalar Date
+scalar JSON
+scalar Upload
+scalar Long
+
+# ===========================
+# Directives for Schema Enhancement
+# ===========================
+
+directive @auth(requires: Role!) on FIELD_DEFINITION
+directive @private on FIELD_DEFINITION
+directive @encrypted on FIELD_DEFINITION
+directive @index(fields: [String!]!) on OBJECT
+directive @cacheControl(maxAge: Int!) on OBJECT | FIELD_DEFINITION
+directive @constraint(
+    minLength: Int
+    maxLength: Int
+    min: Int
+    max: Int
+    pattern: String
+) on INPUT_FIELD_DEFINITION
+directive @future on INPUT_FIELD_DEFINITION
+directive @after(field: String!) on INPUT_FIELD_DEFINITION
+
+# ===========================
+# Core Types - 시간관리의 Cursor + Toss
+# ===========================
+
+type Query {
+    # Namespaced Queries for Better Organization
+    user: UserQueries!
+    calendar: CalendarQueries!
+    analytics: AnalyticsQueries!
+    ai: AIQueries!
+    team: TeamQueries!
+    notification: NotificationQueries!
+    template: TemplateQueries!
+    system: SystemQueries!
+    onboarding: OnboardingQueries!
+}
+
+type UserQueries {
+    me: User
+    profile(id: ID!): User
+    timeProfile: TimeProfile!
+    timeAccount: TimeAccount! # 시간 자산 계좌
+    preferences: UserPreferences!
+    lifePattern: LifePattern!
+    workProfile: WorkProfile!
+    personalGoals: PersonalGoals!
+    timePersona(type: PersonaType): TimePersona!
+}
+
+type CalendarQueries {
+    calendars: [Calendar!]!
+    calendar(id: ID!): Calendar
+    events(filter: EventFilter): EventConnection!
+    event(id: ID!, version: Int): Event
+    eventHistory(id: ID!): [EventVersion!]!
+    upcomingEvents(limit: Int = 10): [Event!]!
+    recurringEvents: [RecurringEvent!]!
+    holidays(year: Int!, country: String!): [Holiday!]!
+    conflictResolution(eventId: ID!): ConflictResolution!
+}
+
+type AnalyticsQueries {
+    dashboard(date: Date!): Dashboard!
+    timeAnalytics(range: DateRangeInput!): TimeAnalytics!
+    productivityScore(date: Date!): ProductivityScore!
+    timeInsights(period: TimePeriod!): [TimeInsight!]!
+    timeTransactions(filter: TransactionFilter): TimeTransactionConnection!
+    aggregatedStats(range: DateRangeInput!, groupBy: AggregationLevel!): [AggregatedStat!]!
+    timeDebt: TimeDebt!
+    failurePatterns: FailurePattern!
+}
+
+type AIQueries {
+    contextualSuggestions: [SmartSuggestion!]!
+    magicCommandSuggestions(context: String!): [MagicCommand!]!
+    chatHistory(limit: Int = 50): [ChatMessage!]!
+    checkConflicts(input: ConflictCheckInput!): ConflictCheckResult!
+    findOptimalTime(input: OptimalTimeInput!): OptimalTimeResult!
+    findOptimalMeetingPlace(addresses: [String!]!): PlaceRecommendationResult!
+    searchEverything(query: String!): SearchResults!
+    currentMagicContext: MagicContext!
+    aiTimeAdvisor: AITimeAdvisor!
+    magicCommandFallback(command: String!): MagicCommandFallback!
+}
+
+type TeamQueries {
+    teamSchedule(teamId: ID!): TeamSchedule! @auth(requires: TEAM_MEMBER)
+    teamTimeHealth(teamId: ID!): TeamTimeHealth! @auth(requires: TEAM_MEMBER)
+    teamPermissions(teamId: ID!): [TeamPermission!]! @auth(requires: TEAM_ADMIN)
+    meetingPlaceSuggestions(attendees: [String!]!): [MeetingPlaceSuggestion!]!
+}
+
+type NotificationQueries {
+    notifications(filter: NotificationFilter): NotificationConnection!
+    unreadCount: Int!
+    notificationSettings: NotificationSettings!
+    smartNotificationStatus: SmartNotification!
+}
+
+type TemplateQueries {
+    templates(category: TemplateCategory): [EventTemplate!]!
+    template(id: ID!): EventTemplate
+    presets: [EventPreset!]!
+    quickTemplates: [QuickTemplate!]!
+}
+
+type SystemQueries {
+    timezones: [Timezone!]!
+    supportedLanguages: [Language!]!
+    systemStatus: SystemStatus!
+    syncStatus(service: ExternalService!): SyncStatus!
+}
+
+type OnboardingQueries {
+    onboardingStatus: OnboardingStep!
+    suggestedDefaults: SmartDefaults!
+}
+
+type Mutation {
+    # User Mutations
+    user: UserMutations!
+
+    # Calendar Mutations
+    calendar: CalendarMutations!
+
+    # AI & Magic Mutations
+    ai: AIMutations!
+
+    # Team Mutations
+    team: TeamMutations!
+
+    # Integration Mutations
+    integrations: IntegrationMutations!
+
+    # Notification Mutations
+    notification: NotificationMutations!
+
+    # Template Mutations
+    template: TemplateMutations!
+
+    # Onboarding Mutations
+    onboarding: OnboardingMutations!
+}
+
+type UserMutations {
+    updateProfile(input: UpdateProfileInput!): UserResult!
+    updatePreferences(input: UserPreferencesInput!): UserResult!
+    updateTimeProfile(input: TimeProfileInput!): TimeProfileResult!
+    setTimeSavingsGoal(input: TimeSavingsGoalInput!): TimeSavingsGoalResult!
+    updatePrivacySettings(input: PrivacySettingsInput!): UserResult!
+    updateLifePattern(input: LifePatternInput!): UserResult!
+    updateWorkProfile(input: WorkProfileInput!): UserResult!
+    updatePersonalGoals(input: PersonalGoalsInput!): UserResult!
+    switchPersona(type: PersonaType!): PersonaSwitchResult!
+}
+
+type CalendarMutations {
+    createCalendar(input: CreateCalendarInput!): CalendarResult!
+    updateCalendar(id: ID!, input: UpdateCalendarInput!): CalendarResult!
+    deleteCalendar(id: ID!): DeleteResult!
+    shareCalendar(id: ID!, input: ShareCalendarInput!): ShareResult!
+
+    # Event Operations
+    createEvent(input: CreateEventInput!): EventResult!
+    updateEvent(id: ID!, input: UpdateEventInput!): EventResult!
+    deleteEvent(id: ID!, mode: DeleteMode = SOFT): DeleteResult!
+    bulkDeleteEvents(ids: [ID!]!, mode: DeleteMode = SOFT): BulkDeleteResult!
+    restoreEvent(id: ID!): EventResult!
+
+    # Recurring Events
+    createRecurringEvent(input: CreateRecurringEventInput!): RecurringEventResult!
+    updateRecurringEvent(id: ID!, input: UpdateRecurringEventInput!): RecurringEventResult!
+    deleteRecurringEventInstance(id: ID!, date: Date!): DeleteResult!
+
+    # Quick Actions - Toss Style
+    quickCreate(input: QuickCreateInput!): QuickCreateResult!
+    quickReschedule(eventId: ID!, offset: TimeOffset!): EventResult!
+    quickCancel(eventId: ID!, notify: Boolean!): CancelResult!
+    createFromTemplate(templateId: ID!, datetime: DateTime!): EventResult!
+
+    # Event Permissions
+    updateEventPermissions(id: ID!, permissions: EventPermissionsInput!): EventResult!
+
+    # Context Optimization
+    optimizeContextSwitching(date: Date!): ContextSwitchOptimization!
+
+    # Emergency Mode
+    activateEmergencyMode(type: EmergencyType!): EmergencyModeResult!
+}
+
+type AIMutations {
+    # AI Session Management
+    createAISession: AISessionResult!
+    continueAISession(sessionId: ID!, input: AIInput!): AIResponse!
+
+    # Magic Commands - Cursor Style
+    magic(command: String!): MagicResult!
+    magicWithContext(command: String!, context: MagicContext!): MagicResult!
+
+    # Screen & Image Processing
+    createEventFromScreenshot(screenshot: Upload!): ScreenshotProcessResult!
+    extractScheduleFromImage(image: Upload!): ScheduleExtractionResult!
+
+    # Natural Language
+    executeNaturalLanguage(input: String!): NLResponse!
+    createEventFromPhoto(photo: Upload!): PhotoProcessResult!
+    createEventFromVoice(audio: Upload!): VoiceProcessResult!
+
+    # Chat Interface
+    sendChatMessage(message: String!, attachments: [ChatAttachment!]): ChatResponse!
+    regenerateResponse(messageId: ID!): ChatResponse!
+
+    # Auto-scheduling
+    autoSchedule(input: AutoScheduleInput!): AutoScheduleResult!
+
+    # Feedback & Learning
+    provideFeedback(input: FeedbackInput!): FeedbackResult!
+    trainAI(input: TrainingInput!): TrainingResult!
+
+    # AI Stream
+    startAISuggestionStream(context: StreamContext!): StreamSession!
+}
+
+type TeamMutations {
+    createTeam(input: CreateTeamInput!): TeamResult!
+    updateTeam(id: ID!, input: UpdateTeamInput!): TeamResult!
+    inviteTeam(teamId: ID!, emails: [String!]!, role: TeamRole!, message: String): InviteResult!
+    updateMemberRole(teamId: ID!, userId: ID!, role: TeamRole!): TeamMemberResult!
+    removeTeamMember(teamId: ID!, userId: ID!): RemoveResult!
+
+    # Team Scheduling
+    suggestTeamMeetingTime(input: TeamMeetingInput!): TeamMeetingResult!
+    optimizeTeamSchedule(teamId: ID!, goals: [OptimizationGoal!]!): OptimizationResult!
+
+    # Enhanced Place Finding
+    findBestMeetingPlace(
+        attendees: [String!]!
+        preferences: PlacePreferences
+    ): PlaceRecommendationResult!
+    calculateTravelTime(from: String!, to: String!, mode: TravelMode): TravelTimeResult!
+}
+
+type IntegrationMutations {
+    syncGoogleCalendar(calendarId: ID): SyncResult!
+    connectGoogleAccount(code: String!): AuthResult!
+    connectSlack(code: String!): IntegrationResult!
+    connectMicrosoft(code: String!): IntegrationResult!
+    disconnectService(service: ExternalService!): DisconnectResult!
+    updateSyncSettings(service: ExternalService!, settings: SyncSettingsInput!): SyncSettingsResult!
+}
+
+type NotificationMutations {
+    createReminder(input: CreateReminderInput!): ReminderResult!
+    updateReminder(id: ID!, input: UpdateReminderInput!): ReminderResult!
+    deleteReminder(id: ID!): DeleteResult!
+    markAsRead(ids: [ID!]!): MarkReadResult!
+    updateNotificationSettings(input: NotificationSettingsInput!): NotificationSettingsResult!
+    updateSmartNotificationSettings(input: SmartNotificationInput!): SmartNotificationResult!
+}
+
+type TemplateMutations {
+    createTemplate(input: CreateTemplateInput!): TemplateResult!
+    updateTemplate(id: ID!, input: UpdateTemplateInput!): TemplateResult!
+    deleteTemplate(id: ID!): DeleteResult!
+    createPreset(input: CreatePresetInput!): PresetResult!
+    createQuickTemplate(input: QuickTemplateInput!): QuickTemplateResult!
+}
+
+type OnboardingMutations {
+    completeOnboardingStep(step: OnboardingStepType!): OnboardingResult!
+    updateSmartDefaults(input: SmartDefaultsInput!): SmartDefaultsResult!
+    importExternalCalendar(service: ExternalService!): ImportResult!
+}
+
+type Subscription {
+    # Event Updates with Filtering
+    eventUpdates(filter: EventUpdateFilter!): EventUpdate!
+
+    # Calendar Updates
+    calendarUpdates(userId: ID!): CalendarUpdate!
+
+    # Instant Notifications
+    instantNotification(userId: ID!): InstantNotification!
+
+    # AI Processing Status
+    aiProcessingStatus(jobId: ID!): ProcessingStatus!
+
+    # Team Updates
+    teamUpdates(teamId: ID!): TeamUpdate!
+
+    # Magic Moments - 실시간 마법 같은 경험
+    magicMoment(userId: ID!): MagicMoment!
+
+    # Time Account Updates - Toss Style
+    timeAccountUpdate(userId: ID!): TimeAccountUpdate!
+
+    # Sync Status Updates
+    syncStatusUpdate(service: ExternalService!): SyncStatusUpdate!
+
+    # Reminder Alerts
+    reminderAlert(userId: ID!): ReminderAlert!
+
+    # Collaboration Updates
+    eventCollaboration(eventId: ID!): EventCollaborationUpdate!
+
+    # AI Suggestion Stream
+    aiSuggestionStream(sessionId: ID!): AISuggestion!
+}
+
+# ===========================
+# Time as Financial Asset - Toss Inspiration
+# ===========================
+
+type TimeAccount {
+    id: ID!
+    owner: User!
+
+    # 시간 잔고
+    balance: TimeBalance!
+
+    # 시간 거래 내역
+    transactions(first: Int, after: String): TimeTransactionConnection!
+
+    # 시간 저축 목표
+    savingsGoals: [TimeSavingsGoal!]!
+
+    # 시간 투자 포트폴리오
+    portfolio: TimePortfolio!
+
+    # 시간 신용 점수
+    timeCredit: TimeCreditScore!
+
+    # 주간/월간 리포트
+    reports: TimeReports!
+
+    # 업무/개인 시간 분리
+    workLifeBalance: WorkLifeBalance!
+
+    # 시간 부채
+    timeDebt: TimeDebt!
+
+    # 시각화
+    visual: TimeAccountVisual!
+}
+
+type TimeAccountVisual {
+    dailyBudget: TimeVisualBudget!
+    spendingPattern: TimeHeatmap!
+    savingsProgress: ProgressBar!
+    timeROI: TimeInvestmentChart!
+}
+
+type TimeVisualBudget {
+    total: Int!
+    used: Int!
+    remaining: Int!
+    categories: [CategoryBudget!]!
+}
+
+type WorkLifeBalance {
+    workHours: TimeBalance!
+    personalHours: TimeBalance!
+    ratio: Float!
+    trend: Trend!
+    healthScore: Int! # 0-100
+}
+
+type TimeBalance {
+    available: Int! # 사용 가능한 시간 (분)
+    committed: Int! # 약속된 시간
+    saved: Int! # 절약한 시간
+    invested: Int! # 투자한 시간 (학습, 운동 등)
+
+    # 시간대별 가치
+    peakHours: Int! # 집중도 높은 시간
+    regularHours: Int! # 일반 시간
+    lowEnergyHours: Int! # 저에너지 시간
+}
+
+type TimeTransaction {
+    id: ID!
+    type: TransactionType!
+    amount: Int! # minutes
+    category: String!
+    description: String!
+
+    # ROI 분석
+    efficiency: Float! # 0-1
+    valueGenerated: TimeValue!
+
+    # 시간대별 가치
+    timeOfDay: TimeOfDay!
+    valueMultiplier: Float! # 시간대별 가치 배수
+
+    # 관련 이벤트
+    relatedEvent: Event
+
+    # 버전 관리
+    version: Int!
+    previousVersion: TimeTransaction
+
+    timestamp: DateTime!
+}
+
+type TimeDebt {
+    overdueTasksMinutes: Int!
+    postponedEventsCount: Int!
+    debtPayoffPlan: [TimeAllocation!]!
+    alerts: DebtWarningLevel!
+}
+
+# ===========================
+# Calendar Types
+# ===========================
+
+type Calendar @index(fields: ["owner", "team", "calendarType"]) {
+    id: ID!
+    name: String!
+    description: String
+    owner: User!
+    team: Team
+
+    # Type and organization
+    calendarType: CalendarType!
+    
+    # Display settings
+    color: String
+    icon: String
+    isDefault: Boolean!
+    displayOrder: Int!
+    
+    # Visibility and sharing
+    visibility: CalendarVisibility!
+    isPublic: Boolean!
+    shareUrl: String
+    shareToken: String
+    allowGuestEdits: Boolean!
+    
+    # Time zone and working hours
+    timeZone: String!
+    workingHoursStart: String!
+    workingHoursEnd: String!
+    workingDays: String!
+    
+    # Event defaults
+    defaultEventDuration: Int!
+    defaultReminderMinutes: Int!
+    defaultEventVisibility: String!
+    
+    # Features
+    enableTimeTracking: Boolean!
+    enableRsvp: Boolean!
+    enableWaitlist: Boolean!
+    enableRecurringEvents: Boolean!
+    
+    # Integration settings
+    syncEnabled: Boolean!
+    externalCalendarId: String
+    externalProvider: String
+    lastSyncAt: DateTime
+    syncDirection: String!
+    
+    # Statistics
+    totalEvents: Long!
+    upcomingEvents: Int!
+    completedEvents: Long!
+    
+    # Calculated fields
+    completionRate: Float!
+    activeEventsCount: Int!
+    isActivelyUsed: Boolean!
+    estimatedDailyWorkingMinutes: Int!
+    requiresSync: Boolean!
+    shareLink: String
+    
+    # Relationships
+    events: [Event!]!
+    permissions: [EventPermission!]!
+    
+    # Metadata
+    tags: String
+    customSettings: JSON
+    isArchived: Boolean!
+    archivedAt: DateTime
+    
+    # Audit fields
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    deletedAt: DateTime
+    version: Long!
+}
+
+enum CalendarType {
+    PERSONAL
+    WORK
+    TEAM
+    PROJECT
+    RESOURCE
+    HOLIDAY
+    BIRTHDAY
+    SPECIAL
+    INTEGRATION
+}
+
+enum CalendarVisibility {
+    PRIVATE
+    TEAM
+    ORGANIZATION
+    PUBLIC
+}
+
+# Calendar-related result types
+type CalendarResult implements Result {
+    success: Boolean!
+    errors: [Error!]
+    calendar: Calendar
+}
+
+# Calendar input types
+input CreateCalendarInput {
+    name: String! @constraint(minLength: 1, maxLength: 200)
+    description: String @constraint(maxLength: 500)
+    calendarType: CalendarType = PERSONAL
+    color: String @constraint(pattern: "^#[0-9A-Fa-f]{6}$")
+    icon: String @constraint(maxLength: 50)
+    visibility: CalendarVisibility = PRIVATE
+    isPublic: Boolean = false
+    timeZone: String!
+    workingHoursStart: String @constraint(pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    workingHoursEnd: String @constraint(pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    workingDays: String @constraint(pattern: "^[1-7,]+$")
+    defaultEventDuration: Int @constraint(min: 1, max: 1440)
+    defaultReminderMinutes: Int @constraint(min: 0, max: 10080)
+    enableTimeTracking: Boolean = true
+    enableRsvp: Boolean = false
+    enableWaitlist: Boolean = false
+    enableRecurringEvents: Boolean = true
+}
+
+input UpdateCalendarInput {
+    name: String @constraint(minLength: 1, maxLength: 200)
+    description: String @constraint(maxLength: 500)
+    calendarType: CalendarType
+    color: String @constraint(pattern: "^#[0-9A-Fa-f]{6}$")
+    icon: String @constraint(maxLength: 50)
+    visibility: CalendarVisibility
+    isPublic: Boolean
+    timeZone: String
+    workingHoursStart: String @constraint(pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    workingHoursEnd: String @constraint(pattern: "^([01]?[0-9]|2[0-3]):[0-5][0-9]$")
+    workingDays: String @constraint(pattern: "^[1-7,]+$")
+    defaultEventDuration: Int @constraint(min: 1, max: 1440)
+    defaultReminderMinutes: Int @constraint(min: 0, max: 10080)
+    enableTimeTracking: Boolean
+    enableRsvp: Boolean
+    enableWaitlist: Boolean
+    enableRecurringEvents: Boolean
+    isArchived: Boolean
+}
+
+input ShareCalendarInput {
+    visibility: CalendarVisibility!
+    allowGuestEdits: Boolean = false
+    generateShareUrl: Boolean = false
+}
+
+type ShareResult implements Result {
+    success: Boolean!
+    errors: [Error!]
+    shareUrl: String
+    shareToken: String
+}
+
+type DeleteResult implements Result {
+    success: Boolean!
+    errors: [Error!]
+    deletedId: ID
+}
+
+# Placeholder types referenced by Calendar (to be fully implemented later)
+type Team {
+    id: ID!
+    name: String!
+    # ... other fields to be implemented
+}
+
+type EventPermission {
+    id: ID!
+    calendar: Calendar!
+    user: User!
+    canEdit: Boolean!
+    canView: Boolean!
+    canInvite: Boolean!
+    # ... other fields to be implemented
+}
+
+# ===========================
+# Enhanced User & Profile Types
+# ===========================
+
+type User @index(fields: ["email"]) {
+    id: ID!
+    email: String! @encrypted
+    displayName: String
+    profileImageUrl: String
+    locale: String!
+    timezone: String!
+
+    # Time Account - 시간 자산
+    timeAccount: TimeAccount!
+
+    # Enhanced Profile
+    timeProfile: TimeProfile!
+    workStyle: WorkStyle!
+    preferences: UserPreferences!
+    privacySettings: PrivacySettings!
+
+    # Life & Work Patterns
+    lifePattern: LifePattern!
+    workProfile: WorkProfile!
+    personalGoals: PersonalGoals!
+    smartDefaults: SmartDefaults!
+
+    # Social
+    teams: [Team!]!
+    connections: [UserConnection!]!
+
+    # Stats
+    stats: UserStats!
+    achievements: [Achievement!]!
+
+    # Subscription
+    subscription: UserSubscription!
+
+    # AI Learning
+    aiProfile: AIProfile!
+
+    # Notification Settings
+    notificationSettings: NotificationSettings!
+
+    status: UserStatus!
+    connectedServices: [ConnectedService!]!
+
+    # Multi-persona
+    personas: [TimePersona!]!
+    activePersona: PersonaType!
+
+    # Onboarding
+    onboardingStatus: OnboardingStep!
+
+    # Soft Delete Support
+    deletedAt: DateTime
+    createdAt: DateTime!
+    updatedAt: DateTime!
+}
+
+type LifePattern {
+    chronotype: Chronotype! # 아침형/저녁형
+    peakHours: [TimeRange!]! # 집중력 높은 시간대
+    lowEnergyHours: [TimeRange!]! # 저에너지 시간대
+    mealTimes: MealSchedule!
+    commuteTimes: CommutePattern!
+}
+
+type WorkProfile {
+    jobRole: String!
+    meetingPreferences: MeetingStyle!
+    deepWorkNeeded: Int! # 주당 필요한 집중 시간
+    collaborationLevel: CollaborationFrequency!
+    remoteWorkDays: [DayOfWeek!]!
+}
+
+type PersonalGoals {
+    workLifeBalanceTarget: Float! # 0-1
+    exerciseFrequency: WeeklyTarget!
+    learningGoals: [LearningGoal!]!
+    sleepSchedule: SleepTarget!
+}
+
+type SmartDefaults {
+    bufferTime: Int! # 회의 사이 여유 시간
+    travelMode: TravelMode!
+    meetingLocations: [FrequentLocation!]!
+    autoDeclineRules: [DeclineRule!]!
+}
+
+type TimePersona {
+    type: PersonaType!
+    workMode: TimeProfile!
+    parentMode: TimeProfile!
+    studentMode: TimeProfile!
+    activeSchedule: [WorkingHours!]!
+    autoSwitchRules: [ContextualSwitchRule!]!
+}
+
+type OnboardingStep {
+    importCalendar: Boolean!
+    setWorkingHours: Boolean!
+    firstMagicCommand: Boolean!
+    timeGoalCreated: Boolean!
+    lifePatternSet: Boolean!
+    workProfileSet: Boolean!
+    completedAt: DateTime
+}
+
+type PrivacySettings {
+    profileVisibility: Visibility!
+    calendarSharing: SharingLevel!
+    locationTracking: Boolean!
+    aiDataUsage: AIDataUsage!
+    dataRetention: DataRetentionSettings!
+}
+
+type NotificationSettings {
+    channels: [NotificationChannel!]!
+    reminderDefaults: ReminderDefaults!
+    quietHours: [TimeRange!]!
+    notificationPreferences: [NotificationPreference!]!
+}
+
+type SmartNotification {
+    bundling: Boolean!
+    priority: AICalculatedPriority!
+    quietHoursAI: Boolean!
+    digestMode: DigestFrequency!
+}
+
+type ReminderDefaults {
+    defaultTime: Int! # minutes before event
+    allDayEventTime: String! # e.g., "09:00"
+    recurringEventReminders: Boolean!
+}
+
+# ===========================
+# Enhanced Event Types with AI Context
+# ===========================
+
+type Event @cacheControl(maxAge: 300) @index(fields: ["startDatetime", "calendar", "attendees"]) {
+    id: ID!
+    calendar: Calendar!
+
+    # Basic Info
+    title: String!
+    description: String
+    location: Location
+
+    # Time
+    startDatetime: DateTime!
+    endDatetime: DateTime!
+    duration: Int! # minutes
+    isAllDay: Boolean!
+    timezone: String!
+
+    # Recurring Event Support
+    recurringEventId: ID
+    recurrenceRule: RecurrenceRule
+    isRecurringInstance: Boolean!
+    originalDate: DateTime # For moved instances
+
+    # Smart Features
+    smartContext: SmartContext
+    efficiency: EventEfficiency
+
+    # Time Investment Analysis
+    timeInvestment: TimeInvestment!
+
+    # Context Switching
+    contextSwitchCost: Int! # minutes
+    contextType: ContextType!
+
+    # Collaboration
+    attendees: [Attendee!]!
+    responseStatus: EventResponseStatus
+
+    # Permissions & Privacy
+    visibility: EventVisibility!
+    permissions: EventPermissions!
+    encryptionStatus: EncryptionStatus!
+
+    # Reminders & Notifications
+    reminders: [Reminder!]!
+    notifications: [Notification!]!
+
+    # Meta
+    source: EventSource!
+    aiGenerated: Boolean!
+    magic: Boolean! # Magic으로 생성됨
+
+    # Relations
+    relatedEvents: [Event!]!
+    conflicts: [Event!]!
+
+    # AI Predictions
+    predictions: EventPredictions!
+
+    # Failure Analysis
+    cancellationProbability: Float!
+    rescheduleProbability: Float!
+
+    # Google Integration
+    googleEventId: String
+    googleCalendarId: String
+    syncStatus: SyncStatus
+
+    # Version Control
+    version: Int!
+    lastModifiedBy: User!
+    changeHistory: [EventChange!]!
+
+    metadata: EventMetadata!
+
+    # Soft Delete
+    deletedAt: DateTime
+    deletedBy: User
+
+    createdAt: DateTime!
+    updatedAt: DateTime!
+}
+
+type ConflictResolution {
+    conflicts: [EventConflict!]!
+    autoReschedule: AIRescheduleOptions!
+    priorityMatrix: EventPriorityGuide!
+    delegationSuggestions: [DelegationOption!]!
+    visualization: TimelineView!
+}
+
+type ContextSwitchOptimization {
+    batchedTasks: [TaskGroup!]!
+    focusBlocks: [UninterruptedTimeBlock!]!
+    transitionTime: Int!
+    energyLevelMatching: Boolean!
+    estimatedTimeSaved: Int!
+}
+
+type FailurePattern {
+    frequentlyCancelledTypes: [EventTypePattern!]!
+    optimisticSchedulingBias: Float!
+    durationAccuracy: DurationAccuracy!
+    suggestedAdjustments: [ScheduleOptimization!]!
+}
+
+type EmergencyMode {
+    type: EmergencyType!
+    active: Boolean!
+    sickDayReschedule: AutoRescheduler!
+    urgentTaskPrioritization: TaskTriage!
+    minimalCommitmentMode: Boolean!
+    recoveryPlan: TimeRecoveryPlan!
+}
+
+type MeetingPlaceSuggestion {
+    place: Location!
+    midpoint: Coordinates!
+    travelTimeForEach: [TravelTime!]!
+    nearbyAmenities: [Amenity!]!
+    bookableSpaces: [BookableVenue!]!
+    score: Float!
+}
+
+type MagicCommandFallback {
+    didYouMean: [String!]!
+    exampleCommands: [String!]!
+    manualInputOption: QuickForm!
+    confidence: Float!
+}
+
+type QuickActionBar {
+    recentMagicCommands: [String!]!
+    oneClickTemplates: [QuickTemplate!]!
+    voiceInputActive: Boolean!
+    smartSuggestions: [ContextualAction!]!
+}
+
+type TimeAchievement {
+    id: ID!
+    type: AchievementType!
+    name: String!
+    description: String!
+    streak: TimeSavingStreak
+    milestone: TimeMilestone
+    comparison: AnonymousComparison
+    unlockedAt: DateTime!
+}
+
+type EventCollaborationUpdate {
+    eventId: ID!
+    action: CollaborationAction!
+    user: User!
+    changes: JSON
+    timestamp: DateTime!
+}
+
+type AISuggestion {
+    id: ID!
+    type: SuggestionType!
+    content: String!
+    confidence: Float!
+    action: SuggestedAction
+    timestamp: DateTime!
+}
+
+# ===========================
+# Common Types & Interfaces
+# ===========================
+
+type PageInfo {
+    hasNextPage: Boolean!
+    hasPreviousPage: Boolean!
+    startCursor: String
+    endCursor: String
+}
+
+type EventConnection {
+    edges: [EventEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+type EventEdge {
+    node: Event!
+    cursor: String!
+}
+
+type TimeTransactionConnection {
+    edges: [TimeTransactionEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+type TimeTransactionEdge {
+    node: TimeTransaction!
+    cursor: String!
+}
+
+type NotificationConnection {
+    edges: [NotificationEdge!]!
+    pageInfo: PageInfo!
+    totalCount: Int!
+}
+
+type NotificationEdge {
+    node: Notification!
+    cursor: String!
+}
+
+interface Result {
+    success: Boolean!
+    errors: [Error!]
+}
+
+type Error {
+    code: String!
+    message: String!
+    field: String
+}
+
+# ===========================
+# Enhanced Enums
+# ===========================
+
+enum Role {
+    USER
+    TEAM_MEMBER
+    TEAM_ADMIN
+    ORGANIZATION_ADMIN
+    SYSTEM_ADMIN
+}
+
+enum TeamRole {
+    MEMBER
+    MANAGER
+    ADMIN
+    OWNER
+}
+
+enum Chronotype {
+    EARLY_BIRD
+    MORNING_LARK
+    NEUTRAL
+    NIGHT_OWL
+    EXTREME_NIGHT_OWL
+}
+
+enum PersonaType {
+    WORK
+    PARENT
+    STUDENT
+    PERSONAL
+    CUSTOM
+}
+
+enum EmergencyType {
+    SICK_DAY
+    FAMILY_EMERGENCY
+    URGENT_DEADLINE
+    SYSTEM_FAILURE
+}
+
+enum ContextType {
+    DEEP_WORK
+    MEETINGS
+    ADMIN_TASKS
+    CREATIVE_WORK
+    COMMUNICATION
+    LEARNING
+    PERSONAL
+}
+
+enum CollaborationAction {
+    JOINED
+    LEFT
+    EDITED
+    COMMENTED
+    RESCHEDULED
+}
+
+enum SuggestionType {
+    RESCHEDULE
+    OPTIMIZE
+    CONFLICT
+    PATTERN
+    OPPORTUNITY
+}
+
+enum AchievementType {
+    TIME_SAVED
+    STREAK
+    EFFICIENCY
+    BALANCE
+    MILESTONE
+}
+
+enum DigestFrequency {
+    REAL_TIME
+    HOURLY
+    DAILY
+    WEEKLY
+}
+
+enum DebtWarningLevel {
+    NONE
+    LOW
+    MEDIUM
+    HIGH
+    CRITICAL
+}
+
+enum OnboardingStepType {
+    IMPORT_CALENDAR
+    SET_WORKING_HOURS
+    FIRST_MAGIC_COMMAND
+    CREATE_TIME_GOAL
+    SET_LIFE_PATTERN
+    SET_WORK_PROFILE
+}
+
+enum TeamAction {
+    VIEW_CALENDAR
+    CREATE_EVENT
+    EDIT_EVENT
+    DELETE_EVENT
+    INVITE_MEMBERS
+    REMOVE_MEMBERS
+    CHANGE_SETTINGS
+    VIEW_ANALYTICS
+}
+
+enum TeamResource {
+    CALENDAR
+    EVENTS
+    MEMBERS
+    SETTINGS
+    ANALYTICS
+}
+
+enum EventVisibility {
+    PRIVATE # Only owner
+    SHARED # Specific users
+    TEAM # Team members
+    PUBLIC # Anyone with link
+}
+
+enum DeleteMode {
+    SOFT # Mark as deleted
+    HARD # Permanent delete
+}
+
+enum RecurrenceFrequency {
+    DAILY
+    WEEKLY
+    MONTHLY
+    YEARLY
+    CUSTOM
+}
+
+enum ExceptionType {
+    CANCELLED
+    RESCHEDULED
+    MODIFIED
+}
+
+enum HolidayType {
+    NATIONAL
+    REGIONAL
+    RELIGIOUS
+    CULTURAL
+    COMPANY
+}
+
+enum NotificationType {
+    REMINDER
+    INVITATION
+    CHANGE
+    CANCELLATION
+    COMMENT
+    TIME_INSIGHT
+    ACHIEVEMENT
+    SYSTEM
+}
+
+enum NotificationChannel {
+    IN_APP
+    EMAIL
+    PUSH
+    SMS
+    SLACK
+    WEBHOOK
+}
+
+enum NotificationPriority {
+    LOW
+    NORMAL
+    HIGH
+    URGENT
+}
+
+enum DeliveryState {
+    PENDING
+    SENT
+    DELIVERED
+    FAILED
+    BOUNCED
+}
+
+enum ReminderType {
+    TIME_BASED
+    LOCATION_BASED
+    SMART # AI determined
+}
+
+enum NotificationMethod {
+    POPUP
+    EMAIL
+    PUSH
+    SMS
+    VOICE_CALL
+}
+
+enum TemplateCategory {
+    MEETING
+    PERSONAL
+    WORK
+    HEALTH
+    EDUCATION
+    SOCIAL
+    CUSTOM
+}
+
+enum ChangeType {
+    CREATED
+    UPDATED
+    DELETED
+    RESTORED
+    MOVED
+    PERMISSION_CHANGED
+}
+
+enum EncryptionStatus {
+    NONE
+    TRANSIT # In transit only
+    AT_REST # At rest only
+    FULL # Both
+}
+
+enum Visibility {
+    PRIVATE
+    CONNECTIONS
+    TEAM
+    PUBLIC
+}
+
+enum SharingLevel {
+    NONE
+    FREE_BUSY
+    LIMITED
+    FULL
+}
+
+enum AIDataUsage {
+    MINIMAL # Basic features only
+    STANDARD # Personalization
+    FULL # All AI features
+}
+
+enum ExternalService {
+    GOOGLE_CALENDAR
+    OUTLOOK
+    APPLE_CALENDAR
+    SLACK
+    TEAMS
+    ZOOM
+    NOTION
+}
+
+enum ServiceStatus {
+    OPERATIONAL
+    DEGRADED
+    PARTIAL_OUTAGE
+    MAJOR_OUTAGE
+}
+
+enum SyncStatus {
+    IDLE
+    SYNCING
+    COMPLETED
+    FAILED
+    RATE_LIMITED
+}
+
+enum AggregationLevel {
+    HOUR
+    DAY
+    WEEK
+    MONTH
+    QUARTER
+    YEAR
+}
+
+enum TimeOfDay {
+    EARLY_MORNING # 5-8
+    MORNING # 8-12
+    AFTERNOON # 12-17
+    EVENING # 17-21
+    NIGHT # 21-24
+    LATE_NIGHT # 0-5
+}
+
+enum TransactionType {
+    SPEND
+    SAVE
+    INVEST
+    WASTE
+    RECOVER
+}
+
+enum InvestmentCategory {
+    WORK
+    LEARNING
+    HEALTH
+    RELATIONSHIPS
+    LEISURE
+    MAINTENANCE
+    COMMUTE
+}
+
+enum TravelMode {
+    DRIVING
+    TRANSIT
+    WALKING
+    CYCLING
+    FLYING
+}
+
+enum CollaborationFrequency {
+    MINIMAL
+    OCCASIONAL
+    REGULAR
+    FREQUENT
+    CONSTANT
+}
+
+# ===========================
+# Input Types with Validation
+# ===========================
+
+input CreateEventInput {
+    title: String! @constraint(minLength: 1, maxLength: 200)
+    description: String @constraint(maxLength: 1000)
+    startDatetime: DateTime! @future
+    endDatetime: DateTime! @after(field: "startDatetime")
+    timezone: String
+    location: LocationInput
+    attendees: [AttendeeInput!]
+
+    # Time Investment
+    expectedValue: TimeValueInput
+    category: InvestmentCategory
+
+    # Context
+    contextType: ContextType
+
+    # Permissions
+    visibility: EventVisibility = PRIVATE
+    permissions: EventPermissionsInput
+
+    # Reminders
+    reminders: [ReminderInput!]
+
+    # Recurring
+    recurrenceRule: RecurrenceRuleInput
+
+    # AI Hints
+    aiContext: EventContextInput
+}
+
+input UserPreferencesInput {
+    language: String
+    dateFormat: String
+    timeFormat: String
+    firstDayOfWeek: DayOfWeek
+    defaultEventDuration: Int
+    defaultReminderMinutes: Int
+}
+
+input LifePatternInput {
+    chronotype: Chronotype!
+    peakHours: [TimeRangeInput!]!
+    lowEnergyHours: [TimeRangeInput!]!
+    mealTimes: MealScheduleInput!
+    commuteTimes: CommutePatternInput!
+}
+
+input WorkProfileInput {
+    jobRole: String!
+    meetingPreferences: MeetingStyleInput!
+    deepWorkNeeded: Int!
+    collaborationLevel: CollaborationFrequency!
+    remoteWorkDays: [DayOfWeek!]!
+}
+
+input PersonalGoalsInput {
+    workLifeBalanceTarget: Float!
+    exerciseFrequency: WeeklyTargetInput!
+    learningGoals: [LearningGoalInput!]!
+    sleepSchedule: SleepTargetInput!
+}
+
+input SmartDefaultsInput {
+    bufferTime: Int!
+    travelMode: TravelMode!
+    meetingLocations: [LocationInput!]!
+    autoDeclineRules: [DeclineRuleInput!]!
+}
+
+input SmartNotificationInput {
+    bundling: Boolean!
+    quietHoursAI: Boolean!
+    digestMode: DigestFrequency!
+}
+
+input CreateRecurringEventInput {
+    baseEvent: CreateEventInput!
+    recurrenceRule: RecurrenceRuleInput!
+    exceptions: [RecurrenceExceptionInput!]
+}
+
+input RecurrenceRuleInput {
+    frequency: RecurrenceFrequency!
+    interval: Int = 1
+    byDay: [DayOfWeek!]
+    byMonth: [Int!]
+    byMonthDay: [Int!]
+    count: Int
+    until: DateTime
+    timezone: String!
+}
+
+input RecurrenceExceptionInput {
+    date: DateTime!
+    type: ExceptionType!
+    replacementEvent: CreateEventInput
+    reason: String
+}
+
+input EventPermissionsInput {
+    canEdit: [ID!]
+    canView: [ID!]
+    canInvite: [ID!]
+    isLocked: Boolean
+}
+
+input ReminderInput {
+    type: ReminderType!
+    time: Int! # minutes before
+    method: NotificationMethod!
+    message: String
+}
+
+input NotificationSettingsInput {
+    channels: [NotificationChannelInput!]!
+    reminderDefaults: ReminderDefaultsInput!
+    quietHours: [TimeRangeInput!]
+}
+
+input NotificationChannelInput {
+    type: NotificationChannel!
+    enabled: Boolean!
+    settings: JSON
+}
+
+input CreateTemplateInput {
+    name: String! @constraint(minLength: 1, maxLength: 100)
+    description: String
+    category: TemplateCategory!
+    defaultTitle: String!
+    defaultDuration: Int!
+    defaultLocation: LocationInput
+    defaultReminders: [ReminderInput!]
+    isPublic: Boolean = false
+}
+
+input PrivacySettingsInput {
+    profileVisibility: Visibility
+    calendarSharing: SharingLevel
+    locationTracking: Boolean
+    aiDataUsage: AIDataUsage
+}
+
+input SyncSettingsInput {
+    enabled: Boolean!
+    frequency: SyncFrequency!
+    direction: SyncDirection!
+    conflictResolution: ConflictResolution!
+}
+
+input TimeRangeInput {
+    start: String! # HH:MM
+    end: String! # HH:MM
+}
+
+input LocationInput {
+    name: String
+    address: String
+    lat: Float
+    lng: Float
+    placeId: String
+}
+
+input MealScheduleInput {
+    breakfast: String
+    lunch: String
+    dinner: String
+}
+
+input CommutePatternInput {
+    morningStart: String
+    morningEnd: String
+    eveningStart: String
+    eveningEnd: String
+    mode: TravelMode
+}
+
+input WeeklyTargetInput {
+    times: Int!
+    duration: Int! # minutes per session
+    preferredDays: [DayOfWeek!]
+    preferredTime: TimeOfDay
+}
+
+input LearningGoalInput {
+    topic: String!
+    weeklyHours: Int!
+    deadline: Date
+}
+
+input SleepTargetInput {
+    bedtime: String! # HH:MM
+    wakeTime: String! # HH:MM
+    hoursNeeded: Float!
+}
+
+input DeclineRuleInput {
+    condition: String!
+    action: String!
+    enabled: Boolean!
+}
+
+input QuickTemplateInput {
+    name: String!
+    template: EventTemplate!
+    quickAccessKey: String
+}
+
+# ===========================
+# Additional Enums for Inputs
+# ===========================
+
+enum SyncFrequency {
+    REAL_TIME
+    EVERY_5_MIN
+    EVERY_15_MIN
+    EVERY_HOUR
+    DAILY
+    MANUAL
+}
+
+enum SyncDirection {
+    ONE_WAY_TO_EXTERNAL
+    ONE_WAY_FROM_EXTERNAL
+    TWO_WAY
+}
+
+enum ConflictResolutionStrategy {
+    LOCAL_WINS
+    EXTERNAL_WINS
+    NEWEST_WINS
+    MANUAL
+}
+
+enum DayOfWeek {
+    MONDAY
+    TUESDAY
+    WEDNESDAY
+    THURSDAY
+    FRIDAY
+    SATURDAY
+    SUNDAY
+}
+
+# ===========================
+# Union Types
+# ===========================
+
+union SearchResult = Event | User | Team | Calendar | TimeTransaction
+
+# ===========================
+# Interfaces for Extensibility
+# ===========================
+
+interface Auditable {
+    createdAt: DateTime!
+    updatedAt: DateTime!
+    createdBy: User
+    updatedBy: User
+}
+
+interface Versionable {
+    version: Int!
+    previousVersion: ID
+    changeHistory: [Change!]!
+}
+
+interface Securable {
+    owner: User!
+    permissions: Permissions!
+    encryptionStatus: EncryptionStatus!
+}

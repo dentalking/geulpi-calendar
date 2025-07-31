@@ -1,0 +1,21 @@
+{
+  "name": "geulpi-e2e-tests",
+  "version": "1.0.0",
+  "description": "E2E tests for Geulpi Calendar",
+  "scripts": {
+    "test": "playwright test",
+    "test:auth": "playwright test tests/01-first-visit/auth.spec.ts",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:real": "REAL_API=true playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.1",
+    "@types/node": "^20.10.5",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "googleapis": "^129.0.0",
+    "google-auth-library": "^9.4.1"
+  }
+}

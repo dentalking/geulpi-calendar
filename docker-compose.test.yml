@@ -1,0 +1,100 @@
+version: '3.8'
+
+services:
+  # Test Database
+  postgres-test:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: geulpi_e2e
+      POSTGRES_USER: geulpi_test
+      POSTGRES_PASSWORD: test_password
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    networks:
+      - test-network
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --databases 2
+    networks:
+      - test-network
+
+  # Frontend with real API connections
+  frontend-test:
+    build:
+      context: ./frontend
+      target: test
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend-test:8080/graphql
+      - NEXT_PUBLIC_WS_URL=ws://backend-test:8080/graphql
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - NODE_ENV=test
+    depends_on:
+      - backend-test
+    networks:
+      - test-network
+
+  # Backend with real external APIs
+  backend-test:
+    build:
+      context: ./backend
+      target: test
+    environment:
+      - SPRING_PROFILES_ACTIVE=test
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/credentials/google-service-account.json
+      - GOOGLE_TEST_USER_EMAIL=${GOOGLE_TEST_USER_EMAIL}
+      - GOOGLE_TEST_USER_REFRESH_TOKEN=${GOOGLE_TEST_USER_REFRESH_TOKEN}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DB_HOST=postgres-test
+      - REDIS_HOST=redis-test
+    volumes:
+      - ./credentials:/app/credentials:ro
+      - test-logs:/app/logs
+    depends_on:
+      - postgres-test
+      - redis-test
+    networks:
+      - test-network
+
+  # ML Server with real OpenAI
+  ml-server-test:
+    build:
+      context: ./ml-server
+      target: test
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MAX_TOKENS_PER_TEST=${OPENAI_MAX_TOKENS_PER_TEST}
+      - REDIS_HOST=redis-test
+    networks:
+      - test-network
+
+  # E2E Test Runner
+  e2e-runner:
+    build:
+      context: ./tests
+      dockerfile: Dockerfile.e2e
+    environment:
+      - E2E_BASE_URL=http://frontend-test:3000
+      - E2E_API_URL=http://backend-test:8080
+      - GOOGLE_TEST_USER_EMAIL=${GOOGLE_TEST_USER_EMAIL}
+      - CLEANUP_AFTER_TEST=${CLEANUP_AFTER_TEST}
+      - TEST_REPORT_DIR=/reports
+    volumes:
+      - ./tests:/tests
+      - ./test-reports:/reports
+      - ./credentials:/credentials:ro
+    depends_on:
+      - frontend-test
+      - backend-test
+      - ml-server-test
+    networks:
+      - test-network
+
+volumes:
+  postgres-test-data:
+  test-logs:
+
+networks:
+  test-network:
+    driver: bridge

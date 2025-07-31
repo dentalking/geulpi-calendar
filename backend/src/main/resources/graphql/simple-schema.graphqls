@@ -1,0 +1,30 @@
+scalar DateTime
+
+type Query {
+    health: String!
+    me: User
+    calendars: [Calendar!]!
+}
+
+type Mutation {
+    createCalendar(input: CreateCalendarInput!): Calendar!
+}
+
+type User {
+    id: ID!
+    email: String!
+    name: String!
+}
+
+type Calendar {
+    id: ID!
+    name: String!
+    description: String
+    owner: User!
+    createdAt: DateTime!
+}
+
+input CreateCalendarInput {
+    name: String!
+    description: String
+}

@@ -1,0 +1,39 @@
+query GetHealth {
+  health
+}
+
+query GetMe {
+  me {
+    id
+    email
+    name
+  }
+}
+
+query GetCalendars {
+  calendars {
+    id
+    name
+    description
+    owner {
+      id
+      email
+      name
+    }
+    createdAt
+  }
+}
+
+mutation CreateCalendar($input: CreateCalendarInput!) {
+  createCalendar(input: $input) {
+    id
+    name
+    description
+    owner {
+      id
+      email
+      name
+    }
+    createdAt
+  }
+}

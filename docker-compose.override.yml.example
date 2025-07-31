@@ -1,0 +1,81 @@
+# Development override configuration
+# Copy this to docker-compose.override.yml and update with your values
+
+version: '3.8'
+
+services:
+  frontend:
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/graphql
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8080/graphql
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - NEXT_PUBLIC_E2E_TEST_MODE=${E2E_TEST_MODE}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+      # Persist auth session for E2E tests
+      - auth-session:/app/.auth-session
+
+  backend:
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI}
+      - JWT_SECRET=${JWT_SECRET}
+      - E2E_TEST_MODE=${E2E_TEST_MODE}
+      - E2E_MOCK_EXTERNAL_APIS=${E2E_MOCK_EXTERNAL_APIS}
+    volumes:
+      - ./backend:/app
+      - gradle-cache:/home/gradle/.gradle
+      # Persist OAuth tokens
+      - oauth-tokens:/app/oauth-tokens
+
+  ml-server:
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - E2E_TEST_MODE=${E2E_TEST_MODE}
+      - E2E_MOCK_EXTERNAL_APIS=${E2E_MOCK_EXTERNAL_APIS}
+    volumes:
+      - ./ml-server:/app
+      - ml-models:/app/models
+
+  e2e-tests:
+    build:
+      context: .
+      dockerfile: tests/Dockerfile
+    environment:
+      - E2E_BASE_URL=http://frontend:3000
+      - E2E_API_URL=http://backend:8080
+      - E2E_AUTH_TOKEN=${E2E_AUTH_TOKEN}
+      - E2E_USER_EMAIL=${E2E_USER_EMAIL}
+      - PLAYWRIGHT_HEADLESS=${PLAYWRIGHT_HEADLESS:-true}
+    volumes:
+      - ./tests:/tests
+      - playwright-cache:/ms-playwright
+      # Share auth session with frontend
+      - auth-session:/auth-session
+    depends_on:
+      - frontend
+      - backend
+      - postgres
+      - redis
+    networks:
+      - geulpi-network
+
+volumes:
+  auth-session:
+    driver: local
+  oauth-tokens:
+    driver: local
+  gradle-cache:
+    driver: local
+  ml-models:
+    driver: local
+  playwright-cache:
+    driver: local
+
+networks:
+  geulpi-network:
+    driver: bridge
